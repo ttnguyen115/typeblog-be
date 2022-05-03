@@ -16,9 +16,10 @@ const validRegister = async (
     errors.push("Your name is only up to 20 characters.");
 
   if (!account) errors.push("Please add your email or phone numbers.");
-  else if (isInvalidAccount(account))
+  else if (isInvalidAccount(account)) {
     errors.push("Email or phone numbers format is incorrect.");
-
+  }
+  
   if (password.length < 6) {
     errors.push("Password must be at least 6 characters.");
   }
