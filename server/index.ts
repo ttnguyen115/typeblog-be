@@ -6,6 +6,8 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 
+import routes from './routes';
+
 // Middleware
 const app = express();
 app.use(express.json());
@@ -15,12 +17,13 @@ app.use(morgan("dev"));
 app.use(cookieParser());
 
 // Routes
-app.get('/', (req, res) => {
-  res.json({ msg: 'Hello jett' });
-});
+app.use('/api', routes.authRouter);
+
+// Database
+import './config/database';
 
 // Server listening
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log('Server is running on port: ', PORT);
-})
+});
