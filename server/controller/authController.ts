@@ -62,18 +62,15 @@ const authController = {
       const { newUser } = decoded;
       if (!newUser)
         return res.status(400).json({ message: "Invalid authentication." });
-      const user = new Users(newUser);
-      await user.save();
+      
+      const user = await Users.findOne({ account: newUser.account });
+      if (user) return res.status(400).json({ msg: "Account already exists." });
+
+      const new_user = new Users(newUser);
+      await new_user.save();
       res.json({ message: "Account has been activated!" });
     } catch (err: any) {
-      let errMsg;
-      if ((err.code = 11000)) {
-        errMsg = Object.keys(err.keyValue)[0] + " already exists.";
-      } else {
-        let name = Object.keys(err.errors)[0];
-        errMsg = err.errors[`${name}`].message;
-      }
-      return res.status(500).json({ message: errMsg });
+      return res.status(500).json({ message: err.message });
     }
   },
 
@@ -94,8 +91,8 @@ const authController = {
 
   logout: async (req: Request, res: Response) => {
     try {
-      res.clearCookie("refreshtoken", { 
-        path: "/api/refresh_token"
+      res.clearCookie("refreshtoken", {
+        path: "/api/refresh_token",
       });
       return res.json({ message: "Logout successfully" });
     } catch (err: any) {
@@ -106,12 +103,19 @@ const authController = {
   refreshToken: async (req: Request, res: Response) => {
     try {
       const refreshToken = req.cookies.refreshtoken;
-      if (!refreshToken) return res.status(400).json({ message: "Please login now!" });
-      const decoded = <IDecodedToken>jwt.verify(refreshToken, `${process.env.REFRESH_TOKEN_SECRET}`);
-      if (!decoded.id) return res.status(400).json({ message: "Please login now!" });
+      if (!refreshToken)
+        return res.status(400).json({ message: "Please login now!" });
+      const decoded = <IDecodedToken>(
+        jwt.verify(refreshToken, `${process.env.REFRESH_TOKEN_SECRET}`)
+      );
+      if (!decoded.id)
+        return res.status(400).json({ message: "Please login now!" });
       // If passed
       const user = await Users.findById(decoded.id).select("-password");
-      if (!user) return res.status(400).json({ message: "This account does not exist." });
+      if (!user)
+        return res
+          .status(400)
+          .json({ message: "This account does not exist." });
 
       const accessToken = generateAccessToken({ id: user._id });
 
@@ -139,7 +143,7 @@ const loginUser = async (user: IUser, password: string, res: Response) => {
   res.json({
     message: "Login Successfully",
     accessToken,
-    user: { ...user._doc, password: '' }, // hide password when return json data
+    user: { ...user._doc, password: "" }, // hide password when return json data
   });
 };
 
