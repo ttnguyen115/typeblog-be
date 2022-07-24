@@ -62,7 +62,7 @@ const authController = {
       const { newUser } = decoded;
       if (!newUser)
         return res.status(400).json({ message: "Invalid authentication." });
-      
+
       const user = await Users.findOne({ account: newUser.account });
       if (user) return res.status(400).json({ msg: "Account already exists." });
 
@@ -102,7 +102,7 @@ const authController = {
 
   refreshToken: async (req: Request, res: Response) => {
     try {
-      const refreshToken = req.cookies.refreshtoken;
+      const refreshToken = req.cookies["refreshtoken"];
       if (!refreshToken)
         return res.status(400).json({ message: "Please login now!" });
       const decoded = <IDecodedToken>(
@@ -119,7 +119,10 @@ const authController = {
 
       const accessToken = generateAccessToken({ id: user._id });
 
-      res.json({ accessToken });
+      res.json({
+        accessToken,
+        user,
+      });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
@@ -137,7 +140,7 @@ const loginUser = async (user: IUser, password: string, res: Response) => {
   res.cookie("refreshtoken", refreshToken, {
     httpOnly: true,
     path: "/api/refresh_token",
-    maxAge: 30 * 24 * 60 * 1000, // 30 days
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   });
 
   res.json({
