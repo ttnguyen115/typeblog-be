@@ -10,8 +10,11 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "./../config/generateToken";
-import { IDecodedToken, IUser } from "./../config/interface";
+import { IDecodedToken, IGgPayload, IUser, IUserParams } from "./../config/interface";
 
+import { OAuth2Client } from "google-auth-library";
+
+const client = new OAuth2Client(`${process.env.MAIL_CLIENT_ID}`);
 const CLIENT_URL = `${process.env.BASE_URL}`;
 
 const authController = {
@@ -89,6 +92,36 @@ const authController = {
     }
   },
 
+  googleLogin: async (req: Request, res: Response) => {
+    try {
+      const { id_token } = req.body;
+      const verify = await client.verifyIdToken({
+        idToken: id_token,
+        audience: `${process.env.MAIL_CLIENT_ID}`,
+      });
+      const { email, email_verified, name, picture } = <IGgPayload>verify.getPayload();
+      if (!email_verified) return res.status(500).json({ msg: "Email verification failed." });
+
+      const password = email + 'your google secret password';
+      const passwordHash = await bcrypt.hash(password, 12);
+      const user = await Users.findOne({ account: email });
+      if (user) {
+        loginUser(user, password, res);
+      } else {
+        const user = {
+          name,
+          account: email,
+          password: passwordHash,
+          avatar: picture,
+          type: "login",
+        };
+        registerUser(user, res);
+      }
+    } catch (err: any) {
+      return res.status(500).json({ msg: err.message });
+    }
+  },
+
   logout: async (req: Request, res: Response) => {
     try {
       res.clearCookie("refreshtoken", {
@@ -147,6 +180,26 @@ const loginUser = async (user: IUser, password: string, res: Response) => {
     message: "Login Successfully",
     accessToken,
     user: { ...user._doc, password: "" }, // hide password when return json data
+  });
+};
+
+const registerUser = async (user: IUserParams, res: Response) => {
+  const newUser = new Users(user);
+  await newUser.save();
+
+  const accessToken = generateAccessToken({ id: newUser._id });
+  const refreshToken = generateRefreshToken({ id: newUser._id });
+
+  res.cookie("refreshtoken", refreshToken, {
+    httpOnly: true,
+    path: "/api/refresh_token",
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  });
+
+  res.json({
+    message: "Login Successfully",
+    accessToken,
+    user: { ...newUser._doc, password: "" }, // hide password when return json data
   });
 };
 
