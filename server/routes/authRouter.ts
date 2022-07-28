@@ -9,8 +9,8 @@ const router = express.Router();
 router.post('/register', validRegister, authController.register);
 router.post('/login', authController.login);
 router.post('/google_login', authController.googleLogin);
+router.post('/facebook_login', authController.facebookLogin);
 router.get('/logout', authController.logout);
-
 router.post('/active', authController.activeAccount);
 router.get('/refresh_token', authController.refreshToken);
 

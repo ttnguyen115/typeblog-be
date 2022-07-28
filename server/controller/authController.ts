@@ -1,6 +1,9 @@
 import bcrypt from "bcrypt";
 import { Request, Response } from "express";
+import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
+// import { RequestInfo, RequestInit } from "node-fetch";
+import fetch from "cross-fetch";
 import { generateActiveToken } from "../config/generateToken";
 import sendEmail from "../config/sendEmail";
 import { sendSMS } from "../config/sendSMS";
@@ -10,10 +13,15 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "./../config/generateToken";
-import { IDecodedToken, IGgPayload, IUser, IUserParams } from "./../config/interface";
+import {
+  IDecodedToken,
+  IGgPayload,
+  IUser,
+  IUserParams,
+} from "./../config/interface";
 
-import { OAuth2Client } from "google-auth-library";
-
+// const fetch = (url: RequestInfo, init?: RequestInit) =>
+//   import("node-fetch").then(({ default: fetch }) => fetch(url, init));
 const client = new OAuth2Client(`${process.env.MAIL_CLIENT_ID}`);
 const CLIENT_URL = `${process.env.BASE_URL}`;
 
@@ -99,10 +107,13 @@ const authController = {
         idToken: id_token,
         audience: `${process.env.MAIL_CLIENT_ID}`,
       });
-      const { email, email_verified, name, picture } = <IGgPayload>verify.getPayload();
-      if (!email_verified) return res.status(500).json({ msg: "Email verification failed." });
+      const { email, email_verified, name, picture } = <IGgPayload>(
+        verify.getPayload()
+      );
+      if (!email_verified)
+        return res.status(500).json({ msg: "Email verification failed." });
 
-      const password = email + 'your google secret password';
+      const password = email + "your google secret password";
       const passwordHash = await bcrypt.hash(password, 12);
       const user = await Users.findOne({ account: email });
       if (user) {
@@ -122,9 +133,51 @@ const authController = {
     }
   },
 
+  facebookLogin: async (req: Request, res: Response) => {
+    try {
+      const { accessToken, userID } = req.body;
+      const URL = `https://graph.facebook.com/v3.0/${userID}/?fields=id,name,email,picture&access_token=${accessToken}`;
+      const data = await fetch(URL)
+        .then((res) => res.json())
+        .then((res) => {
+          return res;
+        });
+      const { id, email, name, picture } = data;
+      const password = email + "your facebook secret password";
+      const passwordHash = await bcrypt.hash(password, 12);
+      const user = await Users.findOne({ account: email });
+      if (user) {
+        loginUser(user, password, res);
+      } else {
+        const user = {
+          name,
+          account: email,
+          password: passwordHash,
+          avatar: picture.data.url,
+          type: "login",
+        };
+        registerUser(user, res);
+      }
+    } catch (err: any) {
+      return res.status(500).json({ msg: err.message });
+    }
+  },
+
   logout: async (req: Request, res: Response) => {
     try {
       res.clearCookie("refreshtoken", {
+        path: "/api/refresh_token",
+      });
+      res.clearCookie("google.com", {
+        path: "/api/refresh_token",
+      });
+      res.clearCookie("accounts.google.com", {
+        path: "/api/refresh_token",
+      });
+      res.clearCookie("G_AUTHUSER_H", {
+        path: "/api/refresh_token",
+      });
+      res.clearCookie("G_AUTHUSER_H", {
         path: "/api/refresh_token",
       });
       return res.json({ message: "Logout successfully" });
