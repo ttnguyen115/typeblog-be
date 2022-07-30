@@ -168,18 +168,6 @@ const authController = {
       res.clearCookie("refreshtoken", {
         path: "/api/refresh_token",
       });
-      res.clearCookie("google.com", {
-        path: "/api/refresh_token",
-      });
-      res.clearCookie("accounts.google.com", {
-        path: "/api/refresh_token",
-      });
-      res.clearCookie("G_AUTHUSER_H", {
-        path: "/api/refresh_token",
-      });
-      res.clearCookie("G_AUTHUSER_H", {
-        path: "/api/refresh_token",
-      });
       return res.json({ message: "Logout successfully" });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
